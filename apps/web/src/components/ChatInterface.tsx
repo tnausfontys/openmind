@@ -115,7 +115,7 @@ export function ChatInterface() {
               <p className="text-gray-500 max-w-md mb-8">
                 P2P AI Commons · AGPLv3
               </p>
-              <div className="bg-gray-50 rounded-2xl p-5 max-w-sm text-gray-500">
+              <div className="rounded-2xl p-5 max-w-sm text-gray-500">
                 
                   <div className="chat-input flex items-center px-4 py-1">
             <button
