@@ -11,33 +11,42 @@ export function ChatInterface() {
   const [workshopData, setWorkshopData] = useState<WorkshopRow[]>([]);
   const [peers, setPeers] = useState<string[]>([]);
   const [connectedPeer, setConnectedPeer] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
+    setFileName(file.name);
     const data = await extractWorkshopPlan(file);
     setWorkshopData(data);
     
     const linkCount = data.filter(d => d.linkUrl).length;
     setMessages(prev => [...prev, {
       role: 'assistant',
-      content: `✅ Loaded workshop plan. Found ${data.length} topics, ${linkCount} hyperlinks. Ask me about any week or topic.`
+      content: `📎 Loaded \`${file.name}\` — ${data.length} topics, ${linkCount} hyperlinks. Ask me anything.`
     }]);
   };
 
   const scanForPeers = async () => {
     const availablePeers = await discoverPeers();
     setPeers(availablePeers);
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: `🔍 Found ${availablePeers.length} peers. Click peer name to connect.`
+    }]);
   };
 
   const connectToPeer = async (peerId: string) => {
     const conn = new OllamaPeerConnection(peerId);
     await conn.connect();
     setConnectedPeer(peerId);
-    // Store connection in window for generation
     (window as any).activePeerConnection = conn;
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: `✅ Connected to peer: ${peerId}`
+    }]);
   };
 
   const sendMessage = async () => {
@@ -47,100 +56,155 @@ export function ChatInterface() {
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     
-    // Check workshop context
     let context = '';
-    if (workshopData.length > 0 && input.toLowerCase().includes('week')) {
-      const weekMatch = input.match(/week\s*(\d+)/i);
-      if (weekMatch) {
-        const week = weekMatch[1];
-        const weekRows = workshopData.filter(row => row.week === week);
-        context = `Workshop week ${week}:\n${weekRows.map(r => 
-          `- ${r.topic}: ${r.linkText} (${r.linkUrl || 'no link'})`
-        ).join('\n')}\n\n`;
-      }
+    if (workshopData.length > 0) {
+      context = `File data loaded:\n${workshopData.map(r => 
+        `- Week ${r.week}: ${r.topic} (${r.linkText})${r.linkUrl ? ` - ${r.linkUrl}` : ''}`
+      ).join('\n')}\n\n`;
     }
     
-    // Generate response
     let response = '';
     if (connectedPeer && (window as any).activePeerConnection) {
-      // Use P2P
-      response = await (window as any).activePeerConnection.generate(
-        context + input
-      );
+      try {
+        response = await (window as any).activePeerConnection.generate(
+          context + input
+        );
+      } catch (e) {
+        response = `⚠️ Peer connection failed. Using fallback.\n\nYour question: ${input}`;
+      }
     } else {
-      // Fallback to Gemini
-      response = `⚠️ No peer connected. Using fallback.\n\nWorkshop planning ready. ${workshopData.length} topics loaded.`;
+      response = `🤖 OpenMind is ready.\n\n${workshopData.length > 0 
+        ? `I see ${workshopData.length} topics loaded. Ask about any week.` 
+        : 'Upload an file with 📎 to start.'}`;
     }
     
     setMessages(prev => [...prev, { role: 'assistant', content: response }]);
   };
 
   return (
-    <div className="flex flex-col h-screen max-w-4xl mx-auto p-4">
-      <div className="mb-4 flex gap-2">
-        <button 
-          onClick={() => fileInputRef.current?.click()}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-        >
-          Upload Workshop Plan
-        </button>
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          onChange={handleFileUpload} 
-          accept=".xlsx,.xls" 
-          className="hidden" 
-        />
-        <button 
-          onClick={scanForPeers}
-          className="bg-green-600 text-white px-4 py-2 rounded"
-        >
-          Scan for Peers
-        </button>
-      </div>
-      
+    <div className="flex flex-col h-screen bg-white">
+      {/* Peer connection bar - Claude style subtle */}
       {peers.length > 0 && (
-        <div className="mb-4 p-2 border rounded">
-          <p className="font-bold">Available peers:</p>
-          {peers.map(peer => (
-            <button
-              key={peer}
-              onClick={() => connectToPeer(peer)}
-              className="mr-2 px-2 py-1 bg-gray-200 rounded text-sm"
-            >
-              {peer} {connectedPeer === peer ? '✅' : ''}
-            </button>
-          ))}
+        <div className="bg-gray-50 border-b border-gray-100 px-6 py-2">
+          <div className="max-w-4xl mx-auto flex items-center gap-2 text-sm overflow-x-auto">
+            <span className="text-gray-500 text-xs uppercase tracking-wider">Peers</span>
+            {peers.map(peer => (
+              <button
+                key={peer}
+                onClick={() => connectToPeer(peer)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  connectedPeer === peer 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {peer.slice(0, 8)}
+              </button>
+            ))}
+          </div>
         </div>
       )}
       
-      <div className="flex-1 overflow-y-auto border rounded p-4 mb-4">
-        {messages.map((msg, i) => (
-          <div key={i} className={`mb-4 ${msg.role === 'user' ? 'text-right' : ''}`}>
-            <span className={`inline-block p-2 rounded ${
-              msg.role === 'user' ? 'bg-blue-100' : 'bg-gray-100'
-            }`}>
-              {msg.content}
-            </span>
+      {/* Messages - Claude style */}
+      <div className="flex-1 overflow-y-auto px-4 py-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center px-4 py-16">
+              <div className="text-7xl mb-6 animate-pulse">🧠</div>
+              <h1 className="text-2xl font-normal text-gray-900 mb-3">OpenMind</h1>
+              <p className="text-gray-500 max-w-md mb-8">
+                P2P AI Commons · AGPLv3
+              </p>
+              <div className="bg-gray-50 rounded-2xl p-5 max-w-sm text-gray-500">
+                
+                  <div className="chat-input flex items-center px-4 py-1">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+              title="Upload file"
+            >
+              📎
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".xlsx,.xls,.csv,.pdf,.txt"
+              className="hidden"
+            />
+            
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              placeholder={fileName ? `Ask about ${fileName}...` : "Message OpenMind..."}
+              className="flex-1 border-0 focus:ring-0 outline-none px-3 py-2 text-sm bg-transparent"
+            />
+            
+            <div className="flex items-center gap-1">
+              <button
+                onClick={scanForPeers}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+                title="Scan for peers"
+              >
+                🔍
+              </button>
+              
+              <button
+                onClick={sendMessage}
+                disabled={!input.trim()}
+                className={`p-2 rounded-full transition-colors ${
+                  input.trim() 
+                    ? 'text-blue-600 hover:bg-blue-50' 
+                    : 'text-gray-300'
+                }`}
+              >
+                ⬆️
+              </button>
+            </div>
           </div>
-        ))}
+          
+          {/* Status bar - Claude style subtle */}
+          <div className="flex justify-between items-center mt-2 px-2">
+            <div className="flex items-center gap-2">
+              <span className={`inline-block w-1.5 h-1.5 rounded-full ${connectedPeer ? 'bg-green-500' : 'bg-gray-300'}`} />
+              <span className="text-xs text-gray-400">
+                {connectedPeer ? `Connected to ${connectedPeer.slice(0, 8)}` : 'No peer connected'}
+              </span>
+            </div>
+            {fileName && (
+              <div className="text-xs text-gray-400 flex items-center gap-1">
+                <span>📎</span> {fileName}
+              </div>
+            )}
+          </div>
+
+              </div>
+            </div>
+          ) : (
+            messages.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div 
+                  className={`max-w-[80%] whitespace-pre-wrap break-words ${
+                    msg.role === 'user' 
+                      ? 'user-message' 
+                      : 'assistant-message'
+                  }`}
+                >
+                  {msg.content}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
       
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-          className="flex-1 border rounded px-4 py-2"
-          placeholder="Ask about workshop planning..."
-        />
-        <button 
-          onClick={sendMessage}
-          className="bg-blue-600 text-white px-6 py-2 rounded"
-        >
-          Send
-        </button>
+      {/* Input area - Claude style */}
+      <div className="border-t border-gray-100 bg-white px-4 py-4">
+        <div className="max-w-4xl mx-auto">
+         
+        </div>
       </div>
     </div>
   );

@@ -1,0 +1,100 @@
+# Dependencies
+node_modules/
+.pnpm/
+.npm/
+.yarn/
+.package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+dist/
+dist-ssr/
+*.local
+out/
+build/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+wrangler.log
+wrangler-*.log
+
+# Cache
+.cache/
+.cache-loader
+.eslintcache
+.temp
+.tmp
+.precipitate
+.rollup.cache
+.vite_cache/
+.wrangler/state/
+.wrangler/cache/
+
+# Coverage
+coverage/
+.nyc_output/
+*.lcov
+.instanbul/
+
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Worker files
+*.worker.js
+*.worker.ts
+*-bundle.js
+
+# Cloudflare
+.wrangler/
+dev.vars
+
+# P2P / local
+ollama-data/
+*.ollama
+peer-keys/
+*.pem
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Temp files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+*.pid
+*.seed
+*.pid.lock

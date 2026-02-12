@@ -18,7 +18,7 @@ export class OllamaPeerConnection {
 
   constructor(
     public peerId: string,
-    public signalingUrl: string = 'wss://signaling.openmind.pages.dev'
+    public signalingUrl: string = 'https://openmind-signaling.openmind-signaling.workers.dev'
   ) {
     this.pc = new RTCPeerConnection({
       iceServers: [
